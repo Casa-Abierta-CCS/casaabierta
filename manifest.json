@@ -2,8 +2,8 @@
   "name": "Casa Abierta - Sistema de Gestión",
   "short_name": "Casa Abierta",
   "description": "Plataforma de gestión para la iglesia Casa Abierta",
-  "start_url": "/app/",
-  "scope": "/app/",
+  "start_url": "/casaabierta/",
+  "scope": "/casaabierta/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#DC2626",
@@ -33,7 +33,7 @@
     {
       "name": "Dashboard",
       "short_name": "Dashboard",
-      "url": "/app/",
+      "url": "/casaabierta/",
       "description": "Ver el panel principal"
     }
   ]
