@@ -1,5 +1,5 @@
-const CACHE_APP = 'casa-abierta-app-v18';
-const CACHE_CDN = 'casa-abierta-cdn-v18';
+const CACHE_APP = 'casa-abierta-app-v19';
+const CACHE_CDN = 'casa-abierta-cdn-v19';
 
 const CDN_ASSETS = [
     'https://unpkg.com/react@18/umd/react.production.min.js',
@@ -9,8 +9,49 @@ const CDN_ASSETS = [
     'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
     'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js',
     'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js',
+    'https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js',
     'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
 ];
+
+// Firebase Cloud Messaging — recordatorios push en segundo plano
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+
+firebase.initializeApp({
+    apiKey: "AIzaSyCkLKeeaePW7wCpp3IPMrEldZTxP_SknwM",
+    authDomain: "casa-abierta-ccs.firebaseapp.com",
+    projectId: "casa-abierta-ccs",
+    storageBucket: "casa-abierta-ccs.firebasestorage.app",
+    messagingSenderId: "772790089728",
+    appId: "1:772790089728:web:6180d2ad3192a6fba580e5"
+});
+
+const messaging = firebase.messaging();
+
+messaging.onBackgroundMessage((payload) => {
+    const { title, body } = payload.notification || {};
+    self.registration.showNotification(title || 'Casa Abierta', {
+        body: body || '',
+        icon: 'icon-192.png',
+        badge: 'icon-192.png'
+    });
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+            for (const client of windowClients) {
+                if (client.url.includes(self.registration.scope) && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            if (clients.openWindow) {
+                return clients.openWindow(self.registration.scope);
+            }
+        })
+    );
+});
 
 // Pre-cachear librerías CDN al instalar
 self.addEventListener('install', (event) => {

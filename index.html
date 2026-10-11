@@ -23,6 +23,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
@@ -102,6 +103,7 @@
                 navigator.serviceWorker.register('sw.js')
                     .then(reg => {
                         console.log('[PWA] Service Worker registrado:', reg.scope);
+                        window.__swRegistration = reg;
                         reg.addEventListener('updatefound', () => {
                             const newWorker = reg.installing;
                             newWorker.addEventListener('statechange', () => {
@@ -140,6 +142,48 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
+
+        // ============================================
+        // NOTIFICACIONES PUSH (FCM)
+        // ============================================
+        const VAPID_KEY = 'BGWTbfrh5jpWPJX60Pr0uUct1wUUJfyLA22GuC1vPQ0g8fykZdj7kTo-XtdUrpGDkOHQs736oSPhQlBQIYFK4g4';
+
+        const notificacionesSoportadas = () =>
+            'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+
+        // Pide permiso, obtiene el token FCM del dispositivo y lo guarda en el perfil del usuario
+        const activarNotificaciones = async (uid) => {
+            if (!notificacionesSoportadas()) {
+                alert('Este navegador no soporta notificaciones push.');
+                return false;
+            }
+            try {
+                const permiso = await Notification.requestPermission();
+                if (permiso !== 'granted') {
+                    alert('No se otorgó el permiso de notificaciones.');
+                    return false;
+                }
+
+                const reg = window.__swRegistration || await navigator.serviceWorker.ready;
+                const messaging = firebase.messaging();
+                messaging.useServiceWorker(reg);
+
+                const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+                if (!token) {
+                    alert('No se pudo obtener el token de notificaciones.');
+                    return false;
+                }
+
+                await db.collection('users').doc(uid).update({
+                    fcmTokens: firebase.firestore.FieldValue.arrayUnion(token)
+                });
+                return true;
+            } catch (error) {
+                console.error('[FCM] Error al activar notificaciones:', error);
+                alert('Error al activar las notificaciones.');
+                return false;
+            }
+        };
 
         // ============================================
         // COMPONENTE PRINCIPAL
@@ -966,8 +1010,22 @@
             const [editandoPerfil, setEditandoPerfil] = useState(false);
             const [perfilData, setPerfilData] = useState({ nombre: userProfile?.nombre || '', departamento: userProfile?.departamento || '', telefono: userProfile?.telefono || '' });
             const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+            const [activandoNotif, setActivandoNotif] = useState(false);
+            const [notifPermiso, setNotifPermiso] = useState(
+                (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported'
+            );
 
             const currentUser = auth.currentUser;
+
+            const handleActivarNotificaciones = async () => {
+                setActivandoNotif(true);
+                const ok = await activarNotificaciones(currentUser.uid);
+                if (ok) {
+                    setNotifPermiso('granted');
+                    alert('✓ Notificaciones activadas — recibirás un recordatorio el día antes de cada tarea asignada');
+                }
+                setActivandoNotif(false);
+            };
 
             const handleGuardarPerfil = async () => {
                 if (!perfilData.nombre.trim()) { alert('El nombre no puede estar vacío'); return; }
@@ -1075,6 +1133,32 @@
                                         ✕ Cancelar
                                     </button>
                                 </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Notificaciones */}
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                        <h3 className="text-lg font-bold text-secondary mb-2">🔔 Recordatorios de tareas</h3>
+                        {notifPermiso === 'unsupported' && (
+                            <p className="text-sm text-gray-500">Tu navegador no soporta notificaciones push.</p>
+                        )}
+                        {notifPermiso === 'denied' && (
+                            <p className="text-sm text-red-600">Bloqueaste las notificaciones para esta app. Actívalas desde los ajustes de permisos del navegador para este sitio.</p>
+                        )}
+                        {notifPermiso === 'granted' && (
+                            <p className="text-sm text-green-600">✓ Notificaciones activadas en este dispositivo. Recibirás un recordatorio el día antes de cada tarea que te asignen.</p>
+                        )}
+                        {notifPermiso === 'default' && (
+                            <div>
+                                <p className="text-sm text-gray-600 mb-3">Activa las notificaciones para que te avisemos un día antes cuando te asignen una tarea de servicio.</p>
+                                <button
+                                    onClick={handleActivarNotificaciones}
+                                    disabled={activandoNotif}
+                                    className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 text-sm disabled:bg-gray-400"
+                                >
+                                    {activandoNotif ? 'Activando...' : '🔔 Activar notificaciones'}
+                                </button>
                             </div>
                         )}
                     </div>

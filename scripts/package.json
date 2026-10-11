@@ -1,0 +1,8 @@
+{
+  "name": "casa-abierta-recordatorios",
+  "private": true,
+  "description": "Envia recordatorios push a voluntarios con tareas asignadas para el dia siguiente",
+  "dependencies": {
+    "firebase-admin": "^12.6.0"
+  }
+}
