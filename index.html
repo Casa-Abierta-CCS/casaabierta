@@ -1439,6 +1439,7 @@
         // ============================================
         function Asistencia({ asistencias }) {
             const [mostrarFormulario, setMostrarFormulario] = useState(false);
+            const [asistenciaEditando, setAsistenciaEditando] = useState(null);
             const [formData, setFormData] = useState({
                 fecha: new Date().toISOString().split('T')[0],
                 tipoEvento: 'Experiencia ADORA',
@@ -1448,35 +1449,67 @@
             });
             const [saving, setSaving] = useState(false);
 
+            const tiposFijos = ['Experiencia ADORA', 'Reunión de Oración', 'Escuela Adora', 'Evento Especial', 'Juventud', 'Niños'];
+            const esTipoPersonalizado = formData.tipoEvento !== '' && !tiposFijos.includes(formData.tipoEvento);
+
+            const formularioVacio = () => ({
+                fecha: new Date().toISOString().split('T')[0],
+                tipoEvento: 'Experiencia ADORA',
+                miembros: '',
+                ninos: '',
+                visitantes: ''
+            });
+
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 setSaving(true);
 
                 try {
-                    await db.collection('asistencias').add({
+                    const datos = {
                         ...formData,
                         miembros: parseInt(formData.miembros) || 0,
                         ninos: parseInt(formData.ninos) || 0,
-                        visitantes: parseInt(formData.visitantes) || 0,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                        visitantes: parseInt(formData.visitantes) || 0
+                    };
 
-                    // Limpiar formulario
-                    setFormData({
-                        fecha: new Date().toISOString().split('T')[0],
-                        tipoEvento: 'Experiencia ADORA',
-                        miembros: '',
-                        ninos: '',
-                        visitantes: ''
-                    });
+                    if (asistenciaEditando) {
+                        await db.collection('asistencias').doc(asistenciaEditando.id).update(datos);
+                        alert('✓ Asistencia actualizada exitosamente');
+                    } else {
+                        await db.collection('asistencias').add({
+                            ...datos,
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        alert('✓ Asistencia registrada exitosamente');
+                    }
+
+                    setFormData(formularioVacio());
+                    setAsistenciaEditando(null);
                     setMostrarFormulario(false);
-                    alert('✓ Asistencia registrada exitosamente');
                 } catch (error) {
                     console.error('Error al guardar:', error);
                     alert('Error al guardar la asistencia');
                 }
 
                 setSaving(false);
+            };
+
+            const handleEditar = (asistencia) => {
+                setAsistenciaEditando(asistencia);
+                setFormData({
+                    fecha: asistencia.fecha || '',
+                    tipoEvento: asistencia.tipoEvento || 'Experiencia ADORA',
+                    miembros: String(asistencia.miembros ?? ''),
+                    ninos: String(asistencia.ninos ?? ''),
+                    visitantes: String(asistencia.visitantes ?? '')
+                });
+                setMostrarFormulario(true);
+            };
+
+            const handleCancelar = () => {
+                setMostrarFormulario(false);
+                setAsistenciaEditando(null);
+                setFormData(formularioVacio());
             };
 
             const handleDelete = async (id) => {
@@ -1496,7 +1529,7 @@
                     <div className="flex items-center justify-between">
                         <h2 className="text-3xl font-bold text-secondary">Asistencia</h2>
                         <button
-                            onClick={() => setMostrarFormulario(!mostrarFormulario)}
+                            onClick={() => mostrarFormulario ? handleCancelar() : setMostrarFormulario(true)}
                             className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 flex items-center space-x-2"
                         >
                             <span>{mostrarFormulario ? '✕' : '+'}</span>
@@ -1506,7 +1539,9 @@
 
                     {mostrarFormulario && (
                         <div className="bg-white rounded-lg shadow-md p-6">
-                            <h3 className="text-xl font-bold text-secondary mb-4">Registrar Nueva Asistencia</h3>
+                            <h3 className="text-xl font-bold text-secondary mb-4">
+                                {asistenciaEditando ? 'Editar Asistencia' : 'Registrar Nueva Asistencia'}
+                            </h3>
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
@@ -1522,8 +1557,14 @@
                                     <div>
                                         <label className="block text-gray-700 font-semibold mb-2">Tipo de Evento *</label>
                                         <select
-                                            value={formData.tipoEvento}
-                                            onChange={(e) => setFormData({...formData, tipoEvento: e.target.value})}
+                                            value={esTipoPersonalizado ? '__otro__' : formData.tipoEvento}
+                                            onChange={(e) => {
+                                                if (e.target.value === '__otro__') {
+                                                    setFormData({...formData, tipoEvento: ''});
+                                                } else {
+                                                    setFormData({...formData, tipoEvento: e.target.value});
+                                                }
+                                            }}
                                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                                             required
                                         >
@@ -1533,8 +1574,23 @@
                                             <option>Evento Especial</option>
                                             <option>Juventud</option>
                                             <option>Niños</option>
+                                            <option value="__otro__">✏️ Otro (personalizado)</option>
                                         </select>
                                     </div>
+
+                                    {esTipoPersonalizado && (
+                                        <div className="md:col-span-2">
+                                            <label className="block text-gray-700 font-semibold mb-2">Nombre del tipo de evento personalizado *</label>
+                                            <input
+                                                type="text"
+                                                value={formData.tipoEvento}
+                                                onChange={(e) => setFormData({...formData, tipoEvento: e.target.value})}
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                                                placeholder="Ej: Vigilia de Año Nuevo"
+                                                required
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1580,7 +1636,7 @@
                                     disabled={saving}
                                     className="w-full bg-secondary text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors disabled:bg-gray-400"
                                 >
-                                    {saving ? 'Guardando...' : '✓ Guardar Asistencia'}
+                                    {saving ? 'Guardando...' : (asistenciaEditando ? '✓ Actualizar Asistencia' : '✓ Guardar Asistencia')}
                                 </button>
                             </form>
                         </div>
@@ -1624,10 +1680,18 @@
                                                         </span>
                                                     </td>
                                                     <td className="py-3 px-4 text-center font-bold text-lg">{total}</td>
-                                                    <td className="py-3 px-4 text-center">
+                                                    <td className="py-3 px-4 text-center space-x-2">
+                                                        <button
+                                                            onClick={() => handleEditar(asistencia)}
+                                                            className="text-blue-600 hover:text-blue-800 font-semibold"
+                                                            title="Editar"
+                                                        >
+                                                            ✏️
+                                                        </button>
                                                         <button
                                                             onClick={() => handleDelete(asistencia.id)}
                                                             className="text-red-600 hover:text-red-800 font-semibold"
+                                                            title="Eliminar"
                                                         >
                                                             🗑️
                                                         </button>
