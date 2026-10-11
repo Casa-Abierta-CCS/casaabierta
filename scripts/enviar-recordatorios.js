@@ -85,6 +85,11 @@ async function main() {
             data: {
                 title: '🔔 Recordatorio de servicio mañana',
                 body: cuerpo
+            },
+            android: {
+                // Prioridad alta: evita que Android retrase la entrega por ahorro
+                // de batería (Doze/App Standby), especialmente en MIUI/Xiaomi.
+                priority: 'high'
             }
         });
 
