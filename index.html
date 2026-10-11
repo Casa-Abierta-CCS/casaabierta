@@ -1013,14 +1013,24 @@
             const [notifPermiso, setNotifPermiso] = useState(
                 (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported'
             );
+            // null = todavía no se sabe, true/false = verificado contra Firestore (independiente del permiso del navegador)
+            const [tokenGuardado, setTokenGuardado] = useState(null);
 
             const currentUser = auth.currentUser;
+
+            useEffect(() => {
+                if (!currentUser) return;
+                db.collection('users').doc(currentUser.uid).get().then(doc => {
+                    setTokenGuardado(((doc.data() || {}).fcmTokens || []).length > 0);
+                });
+            }, [currentUser?.uid]);
 
             const handleActivarNotificaciones = async () => {
                 setActivandoNotif(true);
                 const ok = await activarNotificaciones(currentUser.uid);
+                setNotifPermiso((typeof Notification !== 'undefined') ? Notification.permission : 'unsupported');
                 if (ok) {
-                    setNotifPermiso('granted');
+                    setTokenGuardado(true);
                     alert('✓ Notificaciones activadas — recibirás un recordatorio el día antes de cada tarea asignada');
                 }
                 setActivandoNotif(false);
@@ -1145,18 +1155,20 @@
                         {notifPermiso === 'denied' && (
                             <p className="text-sm text-red-600">Bloqueaste las notificaciones para esta app. Actívalas desde los ajustes de permisos del navegador para este sitio.</p>
                         )}
-                        {notifPermiso === 'granted' && (
-                            <p className="text-sm text-green-600">✓ Notificaciones activadas en este dispositivo. Recibirás un recordatorio el día antes de cada tarea que te asignen.</p>
-                        )}
-                        {notifPermiso === 'default' && (
+                        {(notifPermiso === 'default' || notifPermiso === 'granted') && (
                             <div>
-                                <p className="text-sm text-gray-600 mb-3">Activa las notificaciones para que te avisemos un día antes cuando te asignen una tarea de servicio.</p>
+                                {tokenGuardado === true && (
+                                    <p className="text-sm text-green-600 mb-3">✓ Notificaciones activas en este dispositivo. Recibirás un recordatorio el día antes de cada tarea que te asignen.</p>
+                                )}
+                                {tokenGuardado === false && (
+                                    <p className="text-sm text-gray-600 mb-3">Activa las notificaciones para que te avisemos un día antes cuando te asignen una tarea de servicio.</p>
+                                )}
                                 <button
                                     onClick={handleActivarNotificaciones}
                                     disabled={activandoNotif}
                                     className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 text-sm disabled:bg-gray-400"
                                 >
-                                    {activandoNotif ? 'Activando...' : '🔔 Activar notificaciones'}
+                                    {activandoNotif ? 'Activando...' : (tokenGuardado ? '🔄 Reactivar en este dispositivo' : '🔔 Activar notificaciones')}
                                 </button>
                             </div>
                         )}
