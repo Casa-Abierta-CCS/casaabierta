@@ -166,9 +166,8 @@
 
                 const reg = window.__swRegistration || await navigator.serviceWorker.ready;
                 const messaging = firebase.messaging();
-                messaging.useServiceWorker(reg);
 
-                const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+                const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
                 if (!token) {
                     alert('No se pudo obtener el token de notificaciones.');
                     return false;
@@ -180,7 +179,7 @@
                 return true;
             } catch (error) {
                 console.error('[FCM] Error al activar notificaciones:', error);
-                alert('Error al activar las notificaciones.');
+                alert('Error al activar las notificaciones: ' + (error?.message || error?.code || String(error)));
                 return false;
             }
         };
