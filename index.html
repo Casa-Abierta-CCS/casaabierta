@@ -167,6 +167,12 @@
                 const reg = window.__swRegistration || await navigator.serviceWorker.ready;
                 const messaging = firebase.messaging();
 
+                // Si la app está abierta en primer plano cuando llega el push, mostrarlo igual
+                messaging.onMessage((payload) => {
+                    const { title, body } = payload.data || payload.notification || {};
+                    reg.showNotification(title || 'Casa Abierta', { body: body || '', icon: 'icon-192.png' });
+                });
+
                 const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
                 if (!token) {
                     alert('No se pudo obtener el token de notificaciones.');

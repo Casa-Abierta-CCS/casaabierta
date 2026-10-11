@@ -29,7 +29,7 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-    const { title, body } = payload.notification || {};
+    const { title, body } = payload.data || payload.notification || {};
     self.registration.showNotification(title || 'Casa Abierta', {
         body: body || '',
         icon: 'icon-192.png',

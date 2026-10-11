@@ -82,15 +82,20 @@ async function main() {
 
         const respuesta = await admin.messaging().sendEachForMulticast({
             tokens,
-            notification: {
+            data: {
                 title: '🔔 Recordatorio de servicio mañana',
                 body: cuerpo
             }
         });
 
+        console.log(`  → uid=${uid}: ${respuesta.successCount} exitoso(s), ${respuesta.failureCount} fallido(s) de ${tokens.length} token(s)`);
+
         // Limpiar tokens vencidos/desinstalados para no acumular basura
         const tokensInvalidos = [];
         respuesta.responses.forEach((r, i) => {
+            if (!r.success) {
+                console.log(`    token ${tokens[i].slice(0, 20)}...: ${r.error?.code} — ${r.error?.message}`);
+            }
             if (!r.success && TOKEN_INVALIDO.has(r.error?.code)) {
                 tokensInvalidos.push(tokens[i]);
             }
